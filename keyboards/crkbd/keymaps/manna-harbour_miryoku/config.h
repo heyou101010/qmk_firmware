@@ -32,6 +32,7 @@ KC_NO,  K20,   K21,   K22,   K23,   K24,          K25,   K26,   K27,   K28,   K2
 // #define MASTER_RIGHT
 // #define EE_HANDS
 
+#define SSD1306OLED
 #define USE_SERIAL_PD2
 
 // #undef RGBLED_NUM
