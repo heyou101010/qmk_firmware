@@ -7,7 +7,7 @@
 #include QMK_KEYBOARD_H
 #include <stdio.h>
 #include "features/encoder.h"
-#include "features/achordion.h"
+// #include "features/achordion.h"
 
 enum layers { BASE, BUTTON, MEDIA, NAV, MOUSE, SYM, NUM, FUN };
 
@@ -23,8 +23,8 @@ bool process_record_user(uint16_t keycode, keyrecord_t* record) {
     tap_code16(KC_MUTE);
   }
 
-  if (!process_achordion(keycode, record)) { return false; }
-  // Your macros ...
+  // if (!process_achordion(keycode, record)) { return false; }
+  // // Your macros ...
 
   return true;
 }
@@ -36,7 +36,7 @@ const uint16_t PROGMEM encoder_map[][NUM_ENCODERS][2] = {
 #endif
 
 void matrix_scan_user(void) {
-  achordion_task();
+  // achordion_task();
 }
 
 // bool get_tapping_force_hold(uint16_t keycode, keyrecord_t* record) {
