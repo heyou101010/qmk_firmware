@@ -8,5 +8,5 @@ RGBLIGHT_ENABLE = no       # Enable WS2812 RGB underlight.
 OLED_ENABLE = yes
 OLED_DRIVER = SSD1306
 ENCODER_ENABLE = yes
-ENCODER_MAP_ENABLE = yes
+# ENCODER_MAP_ENABLE = yes
 # SRC += features/achordion.c

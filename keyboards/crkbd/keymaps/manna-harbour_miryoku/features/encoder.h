@@ -8,8 +8,8 @@
 
 #include "quantum_keycodes.h"
 
-typedef enum encoders {
+enum encoders {
   LT_ENC = SAFE_RANGE,
   RT_ENC,
   CUSTOM_SAFE_RANGE
-}
+};
