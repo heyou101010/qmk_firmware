@@ -17,8 +17,7 @@
  */
 #include QMK_KEYBOARD_H
 #include "keycode.h"
-#include "pointing_device.h"
-#include "print.h"
+// #include "pointing_device.h"
 #include "trackball.h"
 
 enum layers {
@@ -29,49 +28,36 @@ enum layers {
     _XTRA, // bootloader, etc
 };
 
-enum custom_keycodes { COPY = PLOOPY_SAFE_RANGE, CUT, PASTE };
-
-enum td_keycodes { BTN_EDIT, BTN_SCRL, BTN_XTRA };
-
-typedef enum { TD_NONE, TD_UNKNOWN, TD_TAP, TD_HOLD, TD_DOUBLE_TAP } td_state_t;
-
-// tapdance function declarations
-td_state_t cur_dance(qk_tap_dance_state_t *state);
-
-void btn_edit_finished(qk_tap_dance_state_t *state, void *user_data);
-void btn_edit_reset(qk_tap_dance_state_t *state, void *user_data);
-void btn_scrl_finished(qk_tap_dance_state_t *state, void *user_data);
-void btn_scrl_reset(qk_tap_dance_state_t *state, void *user_data);
-void btn_xtra_finished(qk_tap_dance_state_t *state, void *user_data);
-void btn_xtra_reset(qk_tap_dance_state_t *state, void *user_data);
+enum custom_keycodes { COPY = PLOOPY_SAFE_RANGE, CUT, PASTE, MAC_MODE };
+static bool is_mac_mode = false;
 
 // clang-format off
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     [_BASE] = LAYOUT(
         KC_BTN1,
         KC_BTN3,
-        TD(BTN_XTRA),   /* . = KC_BTN4  | _ = _XTRA layer  */
-        TD(BTN_EDIT),   /* . = KC_BTN2  | _ = _EDIT layer  */
-        TD(BTN_SCRL)    /* . = KC_BTN5  | _ = _SCRL layer  */
+        LT(_XTRA,KC_BTN4),   /* . = KC_BTN4  | _ = _XTRA layer  */
+        LT(_EDIT,KC_BTN2),   /* . = KC_BTN2  | _ = _EDIT layer  */
+        LT(_SCRL,KC_BTN5)    /* . = KC_BTN5  | _ = _SCRL layer  */
     ),
     [_EDIT] = LAYOUT(
         COPY,
         CUT,
         PASTE,
         _______,        /* Being held to be on this layer */
-        _______         /* Leaving transparent so _SCRL can activate */
+        LT(_SCRL,KC_ENT)         /* Leaving transparent so _SCRL can activate */
     ),
     [_SCRL] = LAYOUT(
         DRAG_SCROLL,
         DPI_CONFIG,
-        _______,
+        MAC_MODE,
         _______,        /* Leaving transparent so _EDIT can activate */
         _______         /* Being held to be on this layer */
     ),
     [_VLME] = LAYOUT(
-        G(C(KC_A)),     /* Mute Mic via PowerToys */
+        G(S(KC_A)),     /* Mute Mic via PowerToys */
         KC_MUTE,        /* Mute speaker audio */
-        G(C(KC_O)),     /* Disable camera via PowerToys */
+        G(S(KC_O)),     /* Disable camera via PowerToys */
         _______,        /* Being held to be on this layer */
         _______         /* Being held to be on this layer */
     ),
@@ -88,14 +74,17 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 bool encoder_update_user(uint8_t index, bool clockwise) {
     if (IS_LAYER_ON(_VLME)) {
-#ifdef CONSOLE_ENABLE
-        uprintf("_VLME layer enabled, and clockwise = %d\n", clockwise);
-#endif
-        if (clockwise) {
-            tap_code16(KC_VOLU);
-        } else {
-            tap_code16(KC_VOLD);
-        }
+        clockwise ? tap_code16(KC_VOLU) : tap_code16(KC_VOLD);
+        return false;
+    }
+
+    if (IS_LAYER_ON(_SCRL)) {
+        clockwise ? tap_code16(KC_MS_WH_LEFT) : tap_code16(KC_MS_WH_RIGHT);
+        return false;
+    }
+
+    if (is_mac_mode){
+        clockwise ? tap_code16(KC_MS_WH_DOWN) : tap_code16(KC_MS_WH_UP);
         return false;
     }
 
@@ -105,34 +94,6 @@ bool encoder_update_user(uint8_t index, bool clockwise) {
 layer_state_t layer_state_set_user(layer_state_t state) {
     set_single_persistent_default_layer(_BASE);
     layer_state_t new_state = update_tri_layer_state(state, _EDIT, _SCRL, _VLME);
-
-#ifdef CONSOLE_ENABLE
-    if (layer_state_cmp(new_state, _EDIT)) {
-        uprintln("_EDIT layer is on");
-    } else {
-        uprintln("_EDIT layer is off");
-    }
-    if (layer_state_cmp(new_state, _SCRL)) {
-        uprintln("_SCRL layer is on");
-    } else {
-        uprintln("_SCRL layer is off");
-    }
-    if (layer_state_cmp(new_state, _VLME)) {
-        uprintln("_VLME layer is on");
-    } else {
-        uprintln("_VLME layer is off");
-    }
-    if (layer_state_cmp(new_state, _XTRA)) {
-        uprintln("_XTRA layer is on");
-    } else {
-        uprintln("_XTRA layer is off");
-    }
-    if (layer_state_cmp(new_state, _BASE)) {
-        uprintln("_BASE layer is on");
-    } else {
-        uprintln("_BASE layer is off");
-    }
-#endif
 
     return new_state;
 }
@@ -144,19 +105,23 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 tap_code16(C(KC_C));
             }
             return false;
-            break;
         case CUT:
             if (record->event.pressed) {
                 tap_code16(C(KC_X));
             }
             return false;
-            break;
         case PASTE:
             if (record->event.pressed) {
                 tap_code16(C(KC_V));
             }
             return false;
-            break;
+        case MAC_MODE:
+            if (record->event.pressed) {
+                is_mac_mode = !is_mac_mode;
+                keymap_config.swap_lctl_lgui = keymap_config.swap_rctl_rgui = is_mac_mode;
+
+            }
+            return false;
 
         default:
             break;
@@ -164,77 +129,3 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 
     return true;
 }
-
-// tap dance functions
-td_state_t cur_dance(qk_tap_dance_state_t *state) {
-#ifdef CONSOLE_ENABLE
-    uprintf("current dance state: count = %d | pressed = %d | finished = %d \r\n", state->count, state->pressed, state->finished);
-#endif
-    switch (state->count) {
-        case 1:
-            if (!state->pressed) {
-                return TD_TAP;
-            } else {
-                return TD_HOLD;
-            }
-        case 2:
-            return TD_DOUBLE_TAP;
-        default:
-            return TD_UNKNOWN;
-    }
-}
-
-static td_state_t td_state;
-
-void btn_edit_finished(qk_tap_dance_state_t *state, void *user_data) {
-    td_state = cur_dance(state);
-
-    // clang-format off
-    switch (td_state) {
-        case TD_TAP: tap_code16(KC_BTN2); break;
-        case TD_HOLD: layer_on(_EDIT); break;
-        default: break;
-    }
-    // clang-format on
-}
-
-void btn_edit_reset(qk_tap_dance_state_t *state, void *user_data) {
-    layer_off(_EDIT);
-}
-
-void btn_scrl_finished(qk_tap_dance_state_t *state, void *user_data) {
-    td_state = cur_dance(state);
-
-    // clang-format off
-    switch (td_state) {
-        case TD_TAP: tap_code16(KC_BTN5); break;
-        case TD_HOLD: layer_on(_SCRL); break;
-        default: break;
-    }
-    // clang-format on
-}
-
-void btn_scrl_reset(qk_tap_dance_state_t *state, void *user_data) {
-    layer_off(_SCRL);
-}
-
-void btn_xtra_finished(qk_tap_dance_state_t *state, void *user_data) {
-    td_state = cur_dance(state);
-    // clang-format off
-    switch (td_state) {
-        case TD_TAP: tap_code16(KC_BTN4); break;
-        case TD_HOLD: layer_on(_XTRA); break;
-        default: break;
-    }
-    // clang-format on
-}
-
-void btn_xtra_reset(qk_tap_dance_state_t *state, void *user_data) {
-    layer_off(_XTRA);
-}
-
-qk_tap_dance_action_t tap_dance_actions[] = {
-    [BTN_EDIT] = ACTION_TAP_DANCE_FN_ADVANCED(NULL, btn_edit_finished, btn_edit_reset),
-    [BTN_SCRL] = ACTION_TAP_DANCE_FN_ADVANCED(NULL, btn_scrl_finished, btn_scrl_reset),
-    [BTN_XTRA] = ACTION_TAP_DANCE_FN_ADVANCED(NULL, btn_xtra_finished, btn_xtra_reset),
-};
